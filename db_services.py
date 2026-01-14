@@ -77,17 +77,15 @@ class DB:
                     conn.rollback()
                     raise
 
-    def get_events_delta(self, start: datetime.datetime, delta: datetime.timedelta) -> list:
+    def get_events_end(self, start: datetime.datetime, end: datetime.datetime) -> list:
         """
-        Return list of event payloads that fall between `start` and `end`.
+        Return list of event payloads that fall between start and end.
 
         - `start` should be a `datetime.datetime`.
-        - `delta` may be a `datetime.timedelta`.
+        - `end` may be a `datetime.datetime`.
 
         Returns a list of Python dicts (the JSON payloads).
         """
-        end = start + delta
-
         params = [start, end] * 3
 
         sql = """
@@ -95,14 +93,25 @@ class DB:
             payload,
             COALESCE(
                 (payload->>'start_iso8601')::timestamptz,
-                (payload->>'date')::timestamptz,
+                -- Try ISO-like dates first, otherwise try DD/MM/YYYY, else NULL
+                CASE
+                    WHEN (payload->>'date') ~ '^\\d{4}-' THEN (payload->>'date')::timestamptz
+                    WHEN (payload->>'date') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN to_timestamp(payload->>'date', 'DD/MM/YYYY')::timestamptz
+                    ELSE NULL
+                END,
                 created_at
             ) AS event_time
         FROM events
         WHERE
             (
                 (payload->>'start_iso8601')::timestamptz BETWEEN %s AND %s
-                OR (payload->>'date')::timestamptz BETWEEN %s AND %s
+                OR (
+                    CASE
+                        WHEN (payload->>'date') ~ '^\\d{4}-' THEN (payload->>'date')::timestamptz
+                        WHEN (payload->>'date') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN to_timestamp(payload->>'date', 'DD/MM/YYYY')::timestamptz
+                        ELSE NULL
+                    END
+                ) BETWEEN %s AND %s
                 OR created_at BETWEEN %s AND %s
             )
         ORDER BY event_time ASC;
@@ -131,4 +140,16 @@ class DB:
             results.append(payload)
 
         return results
+    
+    def get_events_delta(self, start: datetime.datetime, delta: datetime.timedelta) -> list:
+        """
+        Return list of event payloads that fall between start and start+delta.
 
+        - `start` should be a `datetime.datetime`.
+        - `delta` may be a `datetime.timedelta`.
+
+        Returns a list of Python dicts (the JSON payloads).
+        """
+        end = start + delta
+
+        return self.get_events_end(start, end)
