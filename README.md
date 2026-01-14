@@ -24,7 +24,7 @@ Run using the sample_events.json
 
 Postgres notes:
     - The bot will create a simple `events` table on startup when `DATABASE_URL` is provided.
-    - The table stores a stable hash of the event payload and an optional `event_id` (if present in the event). The bot only posts events that are new.
+    - The table stores a stable hash of the event payload and an optional `event_id`. The bot only posts events that have not been posted.
 
 
 ## Run Postgres with Docker Compose (recommended for local development and deployment)
@@ -33,17 +33,26 @@ You can run a local Postgres instance with Docker Compose included in this repo.
 
 1. Start the DB:
     ```bash
-    docker compose up -d
+    docker compose up -d db
     ```
 
 2. Wait for the DB to become healthy (the compose healthcheck uses `pg_isready`).
 
-3. Run the bot (example dry-run):
-    ```fish
-    python3 linkki_bot.py --dry-run
+3. Start the bot (example dry-run):
+    ```bash
+    docker compose up -d bot
     ```
 
-4. To stop and remove the Database:
+4.1 To stop the bot without stopping the database:
+    ```bash
+    docker compose stop bot
+    ```
+
+4.2 To stop and remove the Database:
     ```bash
     docker compose down -v
+    ```
+4.3 Run once without removing the database:
+    ```bash
+    docker compose run --rm bot --mode monthly
     ```

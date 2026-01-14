@@ -137,6 +137,7 @@ def run_bot(bot_token: str, chat_id: str, events_url: str, db: Optional[DB] = No
     now = datetime.datetime.now()
 
     text = ""
+    events = []
     if mode == "weekly":
         text += "*Tällä viikolla:*\n\n"
         events = db.get_events_end(now, end_of_week(now))
