@@ -36,7 +36,7 @@ Postgres notes:
     - The bot will create a simple `events` table on startup when `DATABASE_URL` is provided.
     - The table stores a stable hash of the event payload and an optional `event_id`. The bot only posts events that have not been posted.
 
-## How to contribute and run without docker
+## How to run without docker
 
 1. Create your own bot using BotFather. Go to the Telegram API pages for more info.
 2. Create and activate a python venv.
