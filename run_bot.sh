@@ -78,6 +78,10 @@ if [ "$WAIT_DB" -eq 1 ]; then
 	done
 fi
 
-echo "Starting bot with args: ${ARGS[*]:-}" 
-python3 "$ROOT_DIR/linkki_bot.py" "${ARGS[@]}"
+echo "Starting bot with args: ${ARGS[*]:-}"
 
+if [ "${#ARGS[@]}" -eq 1 ] && [[ "${ARGS[0]}" == *" "* ]]; then
+	read -r -a ARGS <<<"${ARGS[0]}"
+fi
+
+exec python3 "$ROOT_DIR/linkki_bot.py" "${ARGS[@]}"
