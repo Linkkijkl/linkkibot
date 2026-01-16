@@ -52,6 +52,7 @@ Postgres notes:
     ```
 
 Run using the sample_events.json
+
     ```bash
     python3 -m http.server 8000 &; set -x SAMPLE_URL "http://localhost:8000/sample_events.json"; ./run_bot.sh --wait-db --sample --dry-run; kill %1
     ```

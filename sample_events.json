@@ -1,14 +1,14 @@
 [
   {
     "summary": "Peliturnaus",
-    "start_iso8601": "2026-01-20T18:00:00+02:00",
+    "start_iso8601": "2026-01-20T00:00:00Z",
     "location": "Kattila",
     "description": "Pelataas sitä peliä hehhe",
     "url": "https://linkki.example.org/events/kissa_istuu_puussa"
   },
   {
     "summary": "Board Meeting",
-    "start_iso8601": "2026-02-28T17:00:00+02:00",
+    "start_iso8601": "2026-01-28T17:00:00Z",
     "location": "Kattila",
     "description": "Quarterly board meeting. Members only.",
     "url": "https://linkki.example.org/events/2025-12-board"

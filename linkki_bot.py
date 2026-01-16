@@ -65,7 +65,7 @@ def form_message(event: Dict) -> str:
     """
     Format a single event dict into a message string.
 
-    Tries api event fields: summary, time and in the future description, url.
+    Tries api event fields: summary, start_iso8601, description, url.
     """
     parts = []
     title = event.get("summary")
@@ -74,20 +74,26 @@ def form_message(event: Dict) -> str:
 
     start = event.get("start_iso8601")
     if start:
-        parts.append(f"Alkaa: {start}")
+        dt = datetime.datetime.fromisoformat(start)
+        parts.append(f"Päivämäärä: {dt.strftime("%d.%m.%y")}")
+        if dt.hour != 0 or dt.minute != 0:
+            parts.append(f"Alkaa: {dt.strftime("%H:%M")}")
 
     location = event.get("location")
     if location:
+        if type(location) == dict:
+            location = location["string"]
         parts.append(f"Missä: {location}")
+
+    link = event.get("url")
+    if link:
+        parts.append(f"Linkki tapahtumaan: {link}")
 
     desc = event.get("description")
     if desc:
         short = desc if len(desc) <= 400 else desc[:400] + "..."
         parts.append(f"Mitä: {short}")
 
-    link = event.get("url")
-    if link:
-        parts.append(f"Lisää: {link}")
 
     return "\n".join(parts) if parts else json.dumps(event)
 
