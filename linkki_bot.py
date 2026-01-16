@@ -132,7 +132,7 @@ def save_events_to_db(events: List[Dict], db: Optional[DB] = None):
             print("Skipping already saved event")
             continue
 
-def run_bot(bot_token: str, chat_id: str, events_url: str, db: Optional[DB] = None, dry_run: bool = False, mode: str = "monthly") -> int:
+def run_bot(bot_token: str, chat_id: str, events_url: str, db: Optional[DB] = None, dry_run: bool = False, mode: str = "month") -> int:
     """
     Run the core bot service once. Fetch events from the api and send them to chat specified in .env.
     """
@@ -144,11 +144,15 @@ def run_bot(bot_token: str, chat_id: str, events_url: str, db: Optional[DB] = No
 
     text = ""
     events = []
-    if mode == "weekly":
+    if mode == "day":
+        text += "*Tänään:*\n\n"
+        events = db.get_events_end(now, datetime.datetime(now.year, now.month, now.day, 23, 59, 59))
+
+    if mode == "week":
         text += "*Tällä viikolla:*\n\n"
         events = db.get_events_end(now, end_of_week(now))
 
-    if mode == "monthly":
+    if mode == "month":
         text += "*Tässä kuussa:*\n\n"
         events = db.get_events_end(now, end_of_month(now))
 
