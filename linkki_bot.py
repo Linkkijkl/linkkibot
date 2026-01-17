@@ -82,7 +82,7 @@ def form_message(event: Dict) -> str:
     location = event.get("location")
     if location:
         if type(location) == dict:
-            location = location["string"]
+            location = f"[{location["string"]}]({location["url"]})"
         parts.append(f"Missä: {location}")
 
     link = event.get("url")
