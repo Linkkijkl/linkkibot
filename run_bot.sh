@@ -16,11 +16,11 @@ fi
 
 usage() {
 	cat <<EOF
-Usage: $0 [--wait-db] [--dry-run] [--sample]
+Usage: $0 [--wait-db] [--modes] [--sample]
 
 Options:
 	--wait-db   Wait until DATABASE_URL host:port accepts TCP connections (useful after `docker compose up`).
-	Any other flags are forwarded to linkki_bot.py (e.g. --dry-run, --sample).
+	Any other flags are forwarded to linkki_bot.py (e.g. --modes, --sample).
 EOF
 }
 

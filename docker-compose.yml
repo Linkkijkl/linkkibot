@@ -25,7 +25,9 @@ services:
     env_file: .env
     depends_on:
       - db
-    command: ["--mode month"]
+    stdin_open: true
+    tty: true
+    command: ["--modes", "month"]
 
 volumes:
   db_data:
