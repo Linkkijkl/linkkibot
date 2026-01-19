@@ -66,40 +66,34 @@ def normalize_events(data: Any) -> List[Dict]:
     return []
 
 
-def form_message(event: Dict) -> str:
+def format_message(event: Dict) -> str:
     """
     Format a single event dict into a message string.
 
     Tries api event fields: summary, start_iso8601, description, url.
     """
     parts = []
-    title = event.get("summary")
-    if title:
+    
+    if title := event.get("summary"):
         parts.append(f"*{title}*")
 
-    start = event.get("start_iso8601")
-    if start:
+    if start := event.get("start_iso8601"):
         dt = datetime.datetime.fromisoformat(start)
         parts.append(f"Päivämäärä: {dt.strftime("%d.%m.%y")}")
         if dt.hour != 0 or dt.minute != 0:
             parts.append(f"Alkaa: {dt.strftime("%H:%M")}")
 
-    location = event.get("location")
-    if location:
-        if type(location) == dict:
+    if location := event.get("location"):
+        if isinstance(location, dict):
             location = f"[{location["string"]}]({location["url"]})"
         parts.append(f"Missä: {location}")
 
-    #Not used. Maybe at some point we could have the link to the event on the website.
-    link = event.get("url")
-    if link:
+    if link := event.get("url"):
         parts.append(f"Linkki tapahtumaan: {link}")
 
-    desc = event.get("description")
-    if desc:
-        short = desc if len(desc) <= 400 else desc[:400] + "..."
-        parts.append(f"Mitä: {short}")
-
+    if description := event.get("description"):
+        truncated = description if len(description) <= 400 else description[:400] + "..."
+        parts.append(f"Mitä: {truncated}")
 
     return "\n".join(parts) if parts else json.dumps(event)
 
@@ -184,7 +178,7 @@ def post_events(modes = ["month", "dry-run"]) -> int:
         events = db.get_events_end(now, end_of_month(now))
 
     for ev in events:
-        text += form_message(ev)
+        text += format_message(ev)
         text += "\n\n"
     if len(events) < 1:
         text += "Ei tapahtumia :("
