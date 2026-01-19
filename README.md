@@ -46,15 +46,10 @@ Postgres notes:
     ```
 4. Copy .env.example into .env and fill in the variables, or export env vars directly.
 
-5. Run the helper script `run_bot.sh`:
-    ```bash
-    ./run_bot.sh --wait-db --dry-run --sample
-    ```
+5. Create 'postgres-passwd.txt' and 'telegram-apikey.txt', populate them.
 
 Run using the sample_events.json
 
     ```bash
     python3 -m http.server 8000 &; set -x SAMPLE_URL "http://localhost:8000/sample_events.json"; ./run_bot.sh --wait-db --sample --dry-run; kill %1
     ```
-
-
