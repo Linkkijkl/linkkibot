@@ -22,7 +22,9 @@ services:
     restart: on-failure
     env_file: .env
     depends_on:
-      - db
+    - db:
+      condition: service_healthy
+      restart: true
     stdin_open: true
     tty: true
     command: ["--modes", "month"]
