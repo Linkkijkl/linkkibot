@@ -6,15 +6,14 @@ Steps to contributing to this repo:
 
 3. Make sure all the features still work as intended
 
-4. Commit your changes. Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary)
- conventions.
+4. Commit your changes. Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/#summary) conventions.
 
-6. Repeat steps 2-4 until you are satisfied with your changes
+5. Repeat steps 2-4 until you are satisfied with your changes
 
-7. Open a pull request for your branch
+6. Open a pull request for your branch
 
-8. Have someone approve your pull request
+7. Have someone approve your pull request
 
-9. ???
+8. ???
 
-10. Profit
+9. Profit
