@@ -21,7 +21,7 @@ from telegram_services import send_message
 from db_services import DB
 
 
-TELEGRAM_CHAT_ID = os.environ["TELEGRAM_TELEGRAM_CHAT_ID"]
+TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 EVENTS_URL = os.environ["EVENTS_URL"]
 
 def end_of_month(dt: datetime.datetime) -> datetime.datetime:
