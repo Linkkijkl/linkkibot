@@ -22,11 +22,13 @@ services:
     restart: on-failure
     env_file: .env
     depends_on:
-    - db:
-      condition: service_healthy
-      restart: true
-    stdin_open: true
-    tty: true
+      db:
+        condition: service_healthy
+        restart: true
+    develop:
+      watch:
+        - action: rebuild
+          path: src
     command: ["--modes", "month"]
 
 volumes:
