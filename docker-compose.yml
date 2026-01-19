@@ -21,11 +21,13 @@ services:
   bot:
     build: .
     image: linkkibot:latest
-    restart: unless-stopped
+    restart: on-failure
     env_file: .env
     depends_on:
       - db
-    command: ["--mode monthly"]
+    stdin_open: true
+    tty: true
+    command: ["--modes", "month"]
 
 volumes:
   db_data:
