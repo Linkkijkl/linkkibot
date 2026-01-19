@@ -7,20 +7,19 @@ import os
 import json
 import hashlib
 import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 import psycopg2
 import psycopg2.extras
 
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 class DB:
-    def __init__(self, dsn: Optional[str] = None):
-        self.dsn = dsn or os.environ.get("DATABASE_URL")
-        if not self.dsn:
-            raise RuntimeError("DATABASE_URL environment variable is required for Database access")
+    def __init__(self):
+        pass
 
     def get_conn(self):
-        return psycopg2.connect(self.dsn, cursor_factory=psycopg2.extras.DictCursor)
+        return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
 
     def ensure_tables(self) -> None:
         """
@@ -46,20 +45,19 @@ class DB:
         s = json.dumps(ev, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
-    def save_event_if_new(self, ev: Dict[str, Any]) -> bool:
+    def save_event_if_new(self, event: Dict[str, Any]) -> bool:
         """
         Save event if it's new. Returns True if new, False if already existed.
 
         Uses either `id`,`event_id`,`url` as event_id when available, otherwise relies on hash.
         """
         event_id = None
-        for k in ("id", "event_id", "url"):
-            v = ev.get(k)
-            if v:
-                event_id = str(v)
+        for key in ("id", "event_id", "url"):
+            if value := event.get(key):
+                event_id = str(value)
                 break
 
-        ev_hash = self._event_hash(ev)
+        ev_hash = self._event_hash(event)
 
         insert_sql = (
             "INSERT INTO events (event_id, event_hash, payload) VALUES (%s, %s, %s) "
@@ -69,7 +67,7 @@ class DB:
         with self.get_conn() as conn:
             with conn.cursor() as cur:
                 try:
-                    cur.execute(insert_sql, (event_id, ev_hash, psycopg2.extras.Json(ev)))
+                    cur.execute(insert_sql, (event_id, ev_hash, psycopg2.extras.Json(event)))
                     row = cur.fetchone()
                     conn.commit()
                     return bool(row)

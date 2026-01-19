@@ -6,7 +6,6 @@ Fetches events JSON from a configured URL and posts new events to Telegram.
 Run:
   python3 linkki_bot.py [--dry-run] [--sample]
 """
-from __future__ import annotations
 
 import os
 import sys
@@ -14,7 +13,7 @@ import datetime
 import json
 import argparse
 import calendar
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import requests
 
@@ -22,10 +21,8 @@ from telegram_services import send_message
 from db_services import DB
 
 
-bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
-chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-events_url = os.environ.get("EVENTS_URL")
-db = bool(os.environ.get("DATABASE_URL"))
+TELEGRAM_CHAT_ID = os.environ["TELEGRAM_TELEGRAM_CHAT_ID"]
+EVENTS_URL = os.environ["EVENTS_URL"]
 
 def end_of_month(dt: datetime.datetime) -> datetime.datetime:
     last_day = calendar.monthrange(dt.year, dt.month)[1]
@@ -41,11 +38,12 @@ def end_of_week(dt: datetime.datetime, week_start: int = 0) -> datetime.datetime
     tz = dt.tzinfo
     return datetime.datetime.combine(last_date, datetime.time.max).replace(tzinfo=tz)
 
-def fetch_json(url: str, timeout: int = 10) -> Any:
+
+def fetch_json(url: str) -> Any:
     """
     Fetch events json from api.
     """
-    resp = requests.get(url, timeout=timeout)
+    resp = requests.get(url)
     resp.raise_for_status()
     return resp.json()
 
@@ -103,16 +101,12 @@ def get_events_from_api() -> List[Dict]:
     Gets events from linkki api and normalize them into List[Dict].
     """
     try:
-        data = fetch_json(events_url)
+        data = fetch_json(EVENTS_URL)
         print(data)
     except Exception as e:
-        print(f"Failed to fetch events JSON from {events_url}: {e}", file=sys.stderr)
-        return 1
+        print(f"Failed to fetch events JSON from {EVENTS_URL}: {e}", file=sys.stderr)
 
     events = normalize_events(data)
-    if not events:
-        print("No events found.")
-        return 0
     return events
 
 def save_events_to_db(events: List[Dict]):
@@ -120,46 +114,37 @@ def save_events_to_db(events: List[Dict]):
     Save new events into database and skip old events or if there is no database.
     """
     new_events = []
-    for ev in events:
-        is_new = True
-        if db:
-            try:
-                is_new = db.save_event_if_new(ev)
-                if is_new:
-                    new_events.append(ev)
-            except Exception as e:
-                print(f"Database error when saving event: {e}", file=sys.stderr)
-                continue
-
-        if not is_new:
-            print("Skipping already saved event")
-            continue
+    for event in events:
+        try:
+            if db.save_event_if_new(event):
+                new_events.append(event)
+            else:
+                print("Skipping already saved event")
+        except Exception as ex:
+            print(f"Database error when saving event: {ex}", file=sys.stderr)
     return new_events
 
-def poll_events() -> int:
+def poll_events():
     """
     Fetch events from the api handle them in db_services.py and post new events.
     """
-    if not events_url:
-        print("Please set EVENTS_URL environment variables.", file=sys.stderr)
-        return 2
     api_events = get_events_from_api()
 
     new_events = save_events_to_db(api_events)
     messages = []
     for ev in new_events:
         text = "Uusi tapahtuma!!\n"
-        text += form_message(ev)
+        text += format_message(ev)
         text += "\n\n"
         messages.append(text)
     for message in messages:
-        ok = send_message(bot_token, chat_id, message, parse_mode="Markdown")
-        if not ok:
+        ok = send_message(TELEGRAM_CHAT_ID, message, parse_mode="Markdown")
+        if not all(ok.values()):
             print("Failed to send message for event:", ev, file=sys.stderr)
 
     return 0
 
-def post_events(modes = ["month", "dry-run"]) -> int:
+def post_events(modes: list[str] = ["month", "dry-run"]) -> int:
     """
     Run the core bot service once. Fetch events from the api and send them to chat specified in .env.
     """
@@ -187,7 +172,7 @@ def post_events(modes = ["month", "dry-run"]) -> int:
     if "dry-run" in modes:
         print("DRY-RUN:\n", text)
     else:
-        ok = send_message(bot_token, chat_id, text, parse_mode="Markdown")
+        ok = send_message(TELEGRAM_CHAT_ID, text, parse_mode="Markdown")
         if not ok:
             print("Failed to send message for event:", ev, file=sys.stderr)
         else:
@@ -198,7 +183,7 @@ def post_events(modes = ["month", "dry-run"]) -> int:
 
 
 def main(argv=None):
-    global db, events_url
+    global db, EVENTS_URL
     parser = argparse.ArgumentParser(description="Simple JSON -> Telegram bot")
     parser.add_argument("--sample", action="store_true", help="Use sample JSON file")
     parser.add_argument("--modes", nargs='+', help="Bot running mode.", required=True)
@@ -206,20 +191,11 @@ def main(argv=None):
 
     modes = args.modes
 
-    if db:
-        try:
-            db = DB()
-            db.ensure_tables()
-        except Exception as e:
-            print(f"Failed to initialize DB: {e}", file=sys.stderr)
-            return 3
-
-    if not bot_token or not chat_id or not events_url:
-        print("Please set TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, and EVENTS_URL environment variables.", file=sys.stderr)
-        return 2
+    db = DB()
+    db.ensure_tables()
 
     if args.sample:
-        events_url = os.environ.get("SAMPLE_URL")
+        EVENTS_URL = os.environ["SAMPLE_URL"]
 
     if "post_events" in modes:
         poll_events()

@@ -1,19 +1,19 @@
-version: '3.8'
-
 services:
-  db:
+  eventdb:
     image: postgres:15
     restart: unless-stopped
     environment:
-      POSTGRES_USER: linkkari
-      POSTGRES_PASSWORD: kissa123
-      POSTGRES_DB: linkki_db
+      POSTGRES_USER: ${PG_USERNAME:-linkkari}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-passwd
+      POSTGRES_DB: ${PG_DATABASE:-eventdb}
+    secrets:
+      - postgres-passwd
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U linkkari"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,11 +23,28 @@ services:
     image: linkkibot:latest
     restart: on-failure
     env_file: .env
+    environment:
+      POSTGRES_USER: ${PG_USERNAME:-linkkari}
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres-passwd
+      POSTGRES_DB: ${PG_DATABASE:-eventdb}
+    secrets:
+      - postgres-passwd
+      - telegram-apikey
     depends_on:
-      - db
-    stdin_open: true
-    tty: true
+      eventdb:
+        condition: service_healthy
+        restart: true
+    develop:
+      watch:
+        - action: rebuild
+          path: src
     command: ["--modes", "month"]
 
 volumes:
   db_data:
+
+secrets:
+  telegram-apikey:
+    file: "telegram-apikey.txt"
+  postgres-passwd:
+    file: "postgres-passwd.txt"

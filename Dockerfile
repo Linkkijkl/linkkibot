@@ -1,18 +1,11 @@
-FROM python:3.13-slim
+FROM python:3.14
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    uv pip install --system --no-cache-dir --upgrade -r /tmp/requirements.txt
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    bash \
-    && rm -rf /var/lib/apt/lists/*
+COPY ./src .
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
-
-COPY . /app
-RUN chmod +x /app/run_bot.sh || true
-
-ENTRYPOINT ["bash", "/app/run_bot.sh"]
+ENTRYPOINT ["python3", "linkki_bot.py"]
