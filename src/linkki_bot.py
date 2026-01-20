@@ -173,7 +173,7 @@ def post_events(modes: list[str] = ["month", "dry-run"]) -> int:
         print("DRY-RUN:\n", text)
     else:
         ok = send_message(TELEGRAM_CHAT_ID, text, parse_mode="Markdown")
-        if not ok:
+        if not all(ok.values()):
             print("Failed to send message for event:", ev, file=sys.stderr)
         else:
             sent += 1

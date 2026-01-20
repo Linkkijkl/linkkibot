@@ -34,4 +34,4 @@ def send_message(chat_ids: str | list[str], text: str, parse_mode: Optional[str]
             results[chat_id] = bool(data.get("ok"))
         except Exception:
             results[chat_id] = False
-
+    return results
