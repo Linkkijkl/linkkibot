@@ -13,6 +13,7 @@ import datetime
 import json
 import argparse
 import calendar
+import re
 from typing import Any, Dict, List
 
 import requests
@@ -46,6 +47,19 @@ def fetch_json(url: str) -> Any:
     resp = requests.get(url)
     resp.raise_for_status()
     return resp.json()
+
+
+def clean_html(text: str) -> str:
+    """
+    Cleans HTML from text by extracting href URLs from <a> tags
+    and removes other HTML tags aswell.
+    
+    Example: <a href="https://example.com">link text</a> -> https://example.com
+    """
+    text = re.sub(r'<br>', '\n', text)
+    text = re.sub(r'<a\s+href="([^"]+)"[^>]*>.*?</a>', r'\1', text)
+    text = re.sub(r'<[^>]+>', '', text)
+    return text.strip()
 
 
 def normalize_events(data: Any) -> List[Dict]:
@@ -91,7 +105,8 @@ def format_message(event: Dict) -> str:
 
     if description := event.get("description"):
         truncated = description if len(description) <= 400 else description[:400] + "..."
-        parts.append(f"Mitä: {truncated}")
+        clean = clean_html(truncated)
+        parts.append(f"Mitä: \n{clean}")
 
     return "\n".join(parts) if parts else json.dumps(event)
 
