@@ -9,47 +9,69 @@ import hashlib
 import datetime
 from typing import Any, Dict
 
-import psycopg2
-import psycopg2.extras
+from sqlalchemy import DateTime, Index, Text, create_engine, func, select
+from sqlalchemy.dialects.postgresql import JSONB, insert
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Event(Base):
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    event_id: Mapped[str | None] = mapped_column(Text)
+    event_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict | None] = mapped_column(JSONB)
+    created_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    starts_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+Index("events_event_hash_idx", Event.event_hash, unique=True)
+Index("events_starts_at_idx", Event.starts_at)
+Index(
+    "events_event_id_idx",
+    Event.event_id,
+    unique=True,
+    postgresql_where=Event.event_id.is_not(None),
+)
+
+
+def _engine_url(url: str):
+    parsed = make_url(url)
+    if parsed.drivername == "postgres":
+        parsed = parsed.set(drivername="postgresql+psycopg2")
+    return parsed
+
+
 class DB:
     def __init__(self):
-        pass
-
-    def get_conn(self):
-        return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
+        self.engine = create_engine(_engine_url(DATABASE_URL))
 
     def ensure_tables(self) -> None:
         """
         Ensure all tables exist and are consistent.
         """
-        sql = """
-        CREATE TABLE IF NOT EXISTS events (
-            id SERIAL PRIMARY KEY,
-            event_id TEXT,
-            event_hash TEXT NOT NULL,
-            payload JSONB,
-            created_at TIMESTAMPTZ DEFAULT now()
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS events_event_hash_idx ON events(event_hash);
-        CREATE UNIQUE INDEX IF NOT EXISTS events_event_id_idx ON events(event_id) WHERE event_id IS NOT NULL;
-        """
-        with self.get_conn() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql)
+        Base.metadata.create_all(self.engine)
 
     @staticmethod
     def _event_hash(ev: Dict[str, Any]) -> str:
         s = json.dumps(ev, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
-    def save_event_if_new(self, event: Dict[str, Any]) -> bool:
+    def save_event_if_new(self, event: Dict[str, Any], starts_at: datetime.datetime | None) -> bool:
         """
         Save event if it's new. Returns True if new, False if already existed.
 
         Uses either `id`,`event_id`,`url` as event_id when available, otherwise relies on hash.
+        `starts_at` is used by date queries, events saved without it are never returned by them.
         """
         event_id = None
         for key in ("id", "event_id", "url"):
@@ -57,23 +79,20 @@ class DB:
                 event_id = str(value)
                 break
 
-        ev_hash = self._event_hash(event)
-
-        insert_sql = (
-            "INSERT INTO events (event_id, event_hash, payload) VALUES (%s, %s, %s) "
-            "ON CONFLICT DO NOTHING RETURNING id"
+        statement = (
+            insert(Event)
+            .values(
+                event_id=event_id,
+                event_hash=self._event_hash(event),
+                payload=event,
+                starts_at=starts_at,
+            )
+            .on_conflict_do_nothing()
+            .returning(Event.id)
         )
 
-        with self.get_conn() as conn:
-            with conn.cursor() as cur:
-                try:
-                    cur.execute(insert_sql, (event_id, ev_hash, psycopg2.extras.Json(event)))
-                    row = cur.fetchone()
-                    conn.commit()
-                    return bool(row)
-                except Exception:
-                    conn.rollback()
-                    raise
+        with Session(self.engine) as session, session.begin():
+            return session.execute(statement).scalar_one_or_none() is not None
 
     def get_events_end(self, start: datetime.datetime, end: datetime.datetime) -> list:
         """
@@ -84,61 +103,15 @@ class DB:
 
         Returns a list of Python dicts (the JSON payloads).
         """
-        params = [start, end] * 3
+        statement = (
+            select(Event.payload)
+            .where(Event.starts_at.between(start, end))
+            .order_by(Event.starts_at.asc())
+        )
 
-        sql = """
-        SELECT
-            payload,
-            COALESCE(
-                (payload->>'start_iso8601')::timestamptz,
-                -- Try ISO-like dates first, otherwise try DD/MM/YYYY, else NULL
-                CASE
-                    WHEN (payload->>'date') ~ '^\\d{4}-' THEN (payload->>'date')::timestamptz
-                    WHEN (payload->>'date') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN to_timestamp(payload->>'date', 'DD/MM/YYYY')::timestamptz
-                    ELSE NULL
-                END,
-                created_at
-            ) AS event_time
-        FROM events
-        WHERE
-            (
-                (payload->>'start_iso8601')::timestamptz BETWEEN %s AND %s
-                OR (
-                    CASE
-                        WHEN (payload->>'date') ~ '^\\d{4}-' THEN (payload->>'date')::timestamptz
-                        WHEN (payload->>'date') ~ '^\\d{2}/\\d{2}/\\d{4}$' THEN to_timestamp(payload->>'date', 'DD/MM/YYYY')::timestamptz
-                        ELSE NULL
-                    END
-                ) BETWEEN %s AND %s
-                OR created_at BETWEEN %s AND %s
-            )
-        ORDER BY event_time ASC;
-        """
+        with Session(self.engine) as session:
+            return list(session.scalars(statement))
 
-        with self.get_conn() as conn:
-            with conn.cursor() as cur:
-                try:
-                    cur.execute(sql, params)
-                    rows = cur.fetchall()
-                except Exception:
-                    cur.execute(
-                        "SELECT payload FROM events WHERE created_at BETWEEN %s AND %s ORDER BY created_at ASC",
-                        (start, end),
-                    )
-                    rows = cur.fetchall()
-
-        results = []
-        for r in rows:
-            payload = r.get("payload") if isinstance(r, dict) else r[0]
-            if isinstance(payload, (str, bytes)):
-                try:
-                    payload = json.loads(payload)
-                except Exception:
-                    pass
-            results.append(payload)
-
-        return results
-    
     def get_events_delta(self, start: datetime.datetime, delta: datetime.timedelta) -> list:
         """
         Return list of event payloads that fall between start and start+delta.

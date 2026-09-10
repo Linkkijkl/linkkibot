@@ -1,2 +1,4 @@
 .env
 __pycache__*
+postgres-passwd.txt
+telegram-apikey.txt
