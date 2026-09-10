@@ -1,0 +1,2 @@
+0 */1 * * * /bin/bash -l -c 'cd ~/repos/linkkibot/ && docker compose run bot --modes poll_events >> cron_logi.log 2>&1'
+20 4 * * 1 /bin/bash -l -c 'cd ~/repos/linkkibot/ && docker compose run bot --modes week post_events >> cron_logi.log 2>&1'
