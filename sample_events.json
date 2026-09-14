@@ -12,5 +12,37 @@
     "location": "Kattila",
     "description": "Quarterly board meeting. Members only.",
     "url": "https://linkki.example.org/events/2025-12-board"
+  },
+  {
+    "summary": "Syyskokous",
+    "start_iso8601": "2026-09-24T18:00:00+03:00",
+    "location": "Kattila",
+    "description": "Yhdistyksen sääntömääräinen syyskokous.",
+    "url": "https://linkki.example.org/events/syyskokous"
+  },
+  {
+    "summary": "Peli-ilta",
+    "start_iso8601": "2026-09-15T17:00:00+03:00",
+    "location": {"string": "Agora", "url": "https://maps.example.org/agora"},
+    "url": "https://linkki.example.org/events/peli-ilta"
+  },
+  {
+    "summary": "Sitsit",
+    "date": "30/09/2026",
+    "url": "https://linkki.example.org/events/sitsit"
+  },
+  {
+    "summary": "Lokakuun tapahtuma",
+    "start_iso8601": "2026-10-05T12:00:00+03:00",
+    "url": "https://linkki.example.org/events/lokakuu"
+  },
+  {
+    "summary": "Testi: Rikkinäinen päivämäärä",
+    "date": "2026-13-45",
+    "url": "https://linkki.example.org/events/rikki"
+  },
+  {
+    "summary": "Testi: Ei päivämäärää",
+    "url": "https://linkki.example.org/events/ei-pvm"
   }
 ]

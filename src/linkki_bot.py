@@ -13,9 +13,9 @@ import datetime
 import json
 import argparse
 import calendar
+import requests
 from typing import Any, Dict, List
 
-import requests
 
 from telegram_services import send_message
 from db_services import DB
@@ -24,11 +24,13 @@ from db_services import DB
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 EVENTS_URL = os.environ["EVENTS_URL"]
 
+
 def end_of_month(dt: datetime.datetime) -> datetime.datetime:
     last_day = calendar.monthrange(dt.year, dt.month)[1]
     last_date = datetime.date(dt.year, dt.month, last_day)
     tz = dt.tzinfo
     return datetime.datetime.combine(last_date, datetime.time.max).replace(tzinfo=tz)
+
 
 def end_of_week(dt: datetime.datetime, week_start: int = 0) -> datetime.datetime:
     # week_start: 0=Monday, 6=Sunday
@@ -64,19 +66,40 @@ def normalize_events(data: Any) -> List[Dict]:
     return []
 
 
+def parse_event_start(event: Dict) -> datetime.datetime | None:
+    """
+    Parse the event start time from `start_iso8601` or from `date` as ISO or DD/MM/YYYY.
+
+    Returns None when neither field parses.
+    """
+    parsers = (
+        ("start_iso8601", datetime.datetime.fromisoformat),
+        ("date", datetime.datetime.fromisoformat),
+        ("date", lambda s: datetime.datetime.strptime(s, "%d/%m/%Y")),
+    )
+    for key, parse in parsers:
+        value = event.get(key)
+        if not isinstance(value, str):
+            continue
+        try:
+            return parse(value)
+        except ValueError:
+            continue
+    return None
+
+
 def format_message(event: Dict) -> str:
     """
     Format a single event dict into a message string.
 
-    Tries api event fields: summary, start_iso8601, description, url.
+    Tries api event fields: summary, start_iso8601 or date, location, url, description.
     """
     parts = []
-    
+
     if title := event.get("summary"):
         parts.append(f"*{title}*")
 
-    if start := event.get("start_iso8601"):
-        dt = datetime.datetime.fromisoformat(start)
+    if dt := parse_event_start(event):
         parts.append(f"Päivämäärä: {dt.strftime("%d.%m.%y")}")
         if dt.hour != 0 or dt.minute != 0:
             parts.append(f"Alkaa: {dt.strftime("%H:%M")}")
@@ -109,6 +132,7 @@ def get_events_from_api() -> List[Dict]:
     events = normalize_events(data)
     return events
 
+
 def save_events_to_db(events: List[Dict]):
     """
     Save new events into database and skip old events or if there is no database.
@@ -116,7 +140,7 @@ def save_events_to_db(events: List[Dict]):
     new_events = []
     for event in events:
         try:
-            if db.save_event_if_new(event):
+            if db.save_event_if_new(event, parse_event_start(event)):
                 new_events.append(event)
             else:
                 print("Skipping already saved event")
@@ -124,25 +148,28 @@ def save_events_to_db(events: List[Dict]):
             print(f"Database error when saving event: {ex}", file=sys.stderr)
     return new_events
 
-def poll_events():
+
+def poll_events(modes: list[str]) -> int:
     """
     Fetch events from the api handle them in db_services.py and post new events.
+    With "dry-run" in modes, print the messages instead of posting them.
     """
     api_events = get_events_from_api()
 
     new_events = save_events_to_db(api_events)
-    messages = []
     for ev in new_events:
         text = "Uusi tapahtuma!!\n"
         text += format_message(ev)
         text += "\n\n"
-        messages.append(text)
-    for message in messages:
-        ok = send_message(TELEGRAM_CHAT_ID, message, parse_mode="Markdown")
+        if "dry-run" in modes:
+            print("DRY-RUN:\n", text)
+            continue
+        ok = send_message(TELEGRAM_CHAT_ID, text, parse_mode="Markdown")
         if not all(ok.values()):
             print("Failed to send message for event:", ev, file=sys.stderr)
 
     return 0
+
 
 def post_events(modes: list[str] = ["month", "dry-run"]) -> int:
     """
@@ -198,10 +225,10 @@ def main(argv=None):
         EVENTS_URL = os.environ["SAMPLE_URL"]
 
     if "post_events" in modes:
-        poll_events()
+        poll_events(modes=modes)
         post_events(modes=modes)
     elif "poll_events" in modes:
-        poll_events()
+        poll_events(modes=modes)
 
 
 if __name__ == "__main__":

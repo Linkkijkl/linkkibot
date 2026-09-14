@@ -1,12 +1,13 @@
 """
 Telegram services for linkkibot.
 """
-from typing import Optional
-import os
 import requests
+from typing import Optional
+
 from get_docker_secret import get_docker_secret
 
 TELEGRAM_BOT_TOKEN = get_docker_secret("TELEGRAM_BOT_TOKEN")
+
 
 def send_message(chat_ids: str | list[str], text: str, parse_mode: Optional[str] = "Markdown") -> dict[str, bool]:
     """
