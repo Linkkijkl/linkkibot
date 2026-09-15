@@ -3,7 +3,6 @@ Database services for events.
 """
 from __future__ import annotations
 
-import os
 import json
 import hashlib
 import datetime
@@ -14,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+from config import DATABASE_URL
 
 
 class Base(DeclarativeBase):
