@@ -4,12 +4,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${PG_USERNAME:-linkkari}
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-kissa123}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?PG_PASSWORD must be set in .env}
       POSTGRES_DB: ${PG_DATABASE:-eventdb}
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -22,7 +22,8 @@ services:
     restart: on-failure
     env_file: .env
     environment:
-      DATABASE_URL: postgres://${PG_USERNAME:-linkkari}:${PG_PASSWORD:-kissa123}@eventdb:5432/${PG_DATABASE:-eventdb}
+      PG_HOST: eventdb
+      PG_PORT: 5432
     depends_on:
       eventdb:
         condition: service_healthy

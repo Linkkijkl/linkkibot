@@ -8,7 +8,7 @@ Telegram bot for Linkki Jyväskylä ry.
 Docker Compose runs Postgres as the `eventdb` service with a persistent volume, and the bot as the `bot` service.
 
 1. Setup:
-    - Copy `.env.example` into `.env` and fill in the variables. 
+    - Copy `.env.example` into `.env` and fill in the variables.
 
 2. Start the DB and wait for it to become healthy (the compose healthcheck uses `pg_isready`):
     ```bash
