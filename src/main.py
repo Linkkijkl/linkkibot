@@ -19,26 +19,11 @@ from typing import Any, Dict, List
 
 from telegram_services import send_message
 from db_services import DB
+import utils
 
 
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 EVENTS_URL = os.environ["EVENTS_URL"]
-
-
-def end_of_month(dt: datetime.datetime) -> datetime.datetime:
-    last_day = calendar.monthrange(dt.year, dt.month)[1]
-    last_date = datetime.date(dt.year, dt.month, last_day)
-    tz = dt.tzinfo
-    return datetime.datetime.combine(last_date, datetime.time.max).replace(tzinfo=tz)
-
-
-def end_of_week(dt: datetime.datetime, week_start: int = 0) -> datetime.datetime:
-    # week_start: 0=Monday, 6=Sunday
-    wd = dt.weekday()
-    days_to_end = (week_start + 6 - wd) % 7
-    last_date = (dt + datetime.timedelta(days=days_to_end)).date()
-    tz = dt.tzinfo
-    return datetime.datetime.combine(last_date, datetime.time.max).replace(tzinfo=tz)
 
 
 def fetch_json(url: str) -> Any:
@@ -184,10 +169,10 @@ def post_events(modes: list[str] = ["month", "dry-run"]) -> int:
         events = db.get_events_end(now, datetime.datetime(now.year, now.month, now.day, 23, 59, 59))
     elif "week" in modes:
         text += "*Tällä viikolla:*\n\n"
-        events = db.get_events_end(now, end_of_week(now))
+        events = db.get_events_end(now, utils.end_of_week(now))
     elif "month" in modes:
         text += "*Tässä kuussa:*\n\n"
-        events = db.get_events_end(now, end_of_month(now))
+        events = db.get_events_end(now, utils.end_of_month(now))
 
     for ev in events:
         text += format_message(ev)
