@@ -7,7 +7,6 @@ Run:
   python3 linkki_bot.py [--dry-run] [--sample]
 """
 
-import os
 import sys
 import datetime
 import json
@@ -17,12 +16,9 @@ import requests
 from typing import Any, Dict, List
 
 
+from config import EVENTS_URL, SAMPLE_URL, TELEGRAM_CHAT_ID
 from telegram_services import send_message
 from db_services import DB
-
-
-TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-EVENTS_URL = os.environ["EVENTS_URL"]
 
 
 def end_of_month(dt: datetime.datetime) -> datetime.datetime:
@@ -201,7 +197,7 @@ def post_events(modes: list[str] = ["month", "dry-run"]) -> int:
     else:
         ok = send_message(TELEGRAM_CHAT_ID, text, parse_mode="Markdown")
         if not all(ok.values()):
-            print("Failed to send message for event:", ev, file=sys.stderr)
+            print("Failed to send summary message:", text, file=sys.stderr)
         else:
             sent += 1
 
@@ -222,7 +218,9 @@ def main(argv=None):
     db.ensure_tables()
 
     if args.sample:
-        EVENTS_URL = os.environ["SAMPLE_URL"]
+        if not SAMPLE_URL:
+            raise RuntimeError("SAMPLE_URL not set")
+        EVENTS_URL = SAMPLE_URL
 
     if "post_events" in modes:
         poll_events(modes=modes)

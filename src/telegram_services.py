@@ -4,9 +4,7 @@ Telegram services for linkkibot.
 import requests
 from typing import Optional
 
-from get_docker_secret import get_docker_secret
-
-TELEGRAM_BOT_TOKEN = get_docker_secret("TELEGRAM_BOT_TOKEN")
+from config import TELEGRAM_BOT_TOKEN
 
 
 def send_message(chat_ids: str | list[str], text: str, parse_mode: Optional[str] = "Markdown") -> dict[str, bool]:
@@ -15,6 +13,9 @@ def send_message(chat_ids: str | list[str], text: str, parse_mode: Optional[str]
 
     Returns True on success, False otherwise.
     """
+    if not TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set")
+
     if isinstance(chat_ids, str):
         chat_ids = [chat_ids]
     

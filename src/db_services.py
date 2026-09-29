@@ -3,7 +3,6 @@ Database services for events.
 """
 from __future__ import annotations
 
-import os
 import json
 import hashlib
 import datetime
@@ -11,10 +10,9 @@ from typing import Any, Dict
 
 from sqlalchemy import DateTime, Index, Text, create_engine, func, select
 from sqlalchemy.dialects.postgresql import JSONB, insert
-from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-DATABASE_URL = os.environ["DATABASE_URL"]
+from config import DATABASE_URL
 
 
 class Base(DeclarativeBase):
@@ -44,16 +42,9 @@ Index(
 )
 
 
-def _engine_url(url: str):
-    parsed = make_url(url)
-    if parsed.drivername == "postgres":
-        parsed = parsed.set(drivername="postgresql+psycopg2")
-    return parsed
-
-
 class DB:
     def __init__(self):
-        self.engine = create_engine(_engine_url(DATABASE_URL))
+        self.engine = create_engine(DATABASE_URL)
 
     def ensure_tables(self) -> None:
         """
