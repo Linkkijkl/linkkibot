@@ -12,33 +12,19 @@ import sys
 import datetime
 import json
 import argparse
-import calendar
 import requests
-from typing import Any, Dict, List
+from typing import Any
+import logging
 
 
 from telegram_services import send_message
 from db_services import DB
+import utils
 
+logger = logging.getLogger(__name__)
 
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 EVENTS_URL = os.environ["EVENTS_URL"]
-
-
-def end_of_month(dt: datetime.datetime) -> datetime.datetime:
-    last_day = calendar.monthrange(dt.year, dt.month)[1]
-    last_date = datetime.date(dt.year, dt.month, last_day)
-    tz = dt.tzinfo
-    return datetime.datetime.combine(last_date, datetime.time.max).replace(tzinfo=tz)
-
-
-def end_of_week(dt: datetime.datetime, week_start: int = 0) -> datetime.datetime:
-    # week_start: 0=Monday, 6=Sunday
-    wd = dt.weekday()
-    days_to_end = (week_start + 6 - wd) % 7
-    last_date = (dt + datetime.timedelta(days=days_to_end)).date()
-    tz = dt.tzinfo
-    return datetime.datetime.combine(last_date, datetime.time.max).replace(tzinfo=tz)
 
 
 def fetch_json(url: str) -> Any:
@@ -50,7 +36,7 @@ def fetch_json(url: str) -> Any:
     return resp.json()
 
 
-def normalize_events(data: Any) -> List[Dict]:
+def normalize_events(data: Any) -> list[dict]:
     """
     Normalize data into a list of event dicts.
 
@@ -66,7 +52,7 @@ def normalize_events(data: Any) -> List[Dict]:
     return []
 
 
-def parse_event_start(event: Dict) -> datetime.datetime | None:
+def parse_event_start(event: dict) -> datetime.datetime | None:
     """
     Parse the event start time from `start_iso8601` or from `date` as ISO or DD/MM/YYYY.
 
@@ -88,7 +74,7 @@ def parse_event_start(event: Dict) -> datetime.datetime | None:
     return None
 
 
-def format_message(event: Dict) -> str:
+def format_message(event: dict) -> str:
     """
     Format a single event dict into a message string.
 
@@ -119,9 +105,9 @@ def format_message(event: Dict) -> str:
     return "\n".join(parts) if parts else json.dumps(event)
 
 
-def get_events_from_api() -> List[Dict]:
+def get_events_from_api() -> list[dict]:
     """
-    Gets events from linkki api and normalize them into List[Dict].
+    Gets events from linkki api and normalize them into list[dict].
     """
     try:
         data = fetch_json(EVENTS_URL)
@@ -133,7 +119,7 @@ def get_events_from_api() -> List[Dict]:
     return events
 
 
-def save_events_to_db(events: List[Dict]):
+def save_events_to_db(events: list[dict]):
     """
     Save new events into database and skip old events or if there is no database.
     """
@@ -141,11 +127,12 @@ def save_events_to_db(events: List[Dict]):
     for event in events:
         try:
             if db.save_event_if_new(event, parse_event_start(event)):
+                logger.info(f"Saved new event to db")
                 new_events.append(event)
             else:
-                print("Skipping already saved event")
+                logger.info("Skipping already saved event")
         except Exception as ex:
-            print(f"Database error when saving event: {ex}", file=sys.stderr)
+            logger.error(f"Failed to save event in db: {ex}")
     return new_events
 
 
@@ -184,17 +171,18 @@ def post_events(modes: list[str] = ["month", "dry-run"]) -> int:
         events = db.get_events_end(now, datetime.datetime(now.year, now.month, now.day, 23, 59, 59))
     elif "week" in modes:
         text += "*Tällä viikolla:*\n\n"
-        events = db.get_events_end(now, end_of_week(now))
+        events = db.get_events_end(now, utils.end_of_week(now))
     elif "month" in modes:
         text += "*Tässä kuussa:*\n\n"
-        events = db.get_events_end(now, end_of_month(now))
+        events = db.get_events_end(now, utils.end_of_month(now))
 
     for ev in events:
         text += format_message(ev)
         text += "\n\n"
-    if len(events) < 1:
+
+    if not events:
         text += "Ei tapahtumia :("
-    
+
     sent = 0
     if "dry-run" in modes:
         print("DRY-RUN:\n", text)
