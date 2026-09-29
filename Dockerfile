@@ -8,4 +8,4 @@ RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
 
 COPY ./src .
 
-ENTRYPOINT ["python3", "linkki_bot.py"]
+ENTRYPOINT ["python3", "main.py"]
